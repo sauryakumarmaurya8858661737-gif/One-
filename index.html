@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Valentine 💖</title>
+  <style>
+    :root{
+      --accent: #ff4d6d;
+      --bg1: #ff9a9e;
+      --bg2: #fad0c4;
+      --card-radius: 20px;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    body{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+      padding:20px;
+    }
+
+    .card{
+      background: #fff;
+      width: min(420px, 94%);
+      padding: 32px;
+      border-radius: var(--card-radius);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    h1{
+      color: var(--accent);
+      margin: 0 0 22px 0;
+      font-size: 1.25rem;
+      line-height:1.2;
+    }
+
+    .actions{
+      display:flex;
+      gap:12px;
+      justify-content:center;
+      align-items:center;
+      margin-top:10px;
+      position:relative;
+      height:68px;
+    }
+
+    button{
+      padding: 12px 22px;
+      font-size: 16px;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .yes{
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 6px 14px rgba(255,77,109,0.28);
+      transition: transform .12s ease;
+      z-index: 2;
+    }
+
+    .yes:active{ transform: scale(.98); }
+    .yes:focus{ outline: 3px solid rgba(255,77,109,0.18); }
+
+    .no{
+      background: #e6e6e6;
+      color: #333;
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      z-index: 1;
+      transition: left .28s cubic-bezier(.2,.8,.2,1), top .28s cubic-bezier(.2,.8,.2,1), transform .12s;
+      will-change: left, top;
+    }
+
+    .no:active{ transform: scale(.95); }
+    .no:focus{ outline: 3px solid rgba(0,0,0,0.08); }
+
+    /* accessible hidden text for screen readers */
+    .sr-only{
+      position: absolute !important;
+      height: 1px; width: 1px;
+      overflow: hidden;
+      clip: rect(1px, 1px, 1px, 1px);
+      white-space: nowrap;
+      clip-path: inset(50%);
+      border: 0;
+      padding: 0;
+      margin: -1px;
+    }
+
+    @media (max-width:420px){
+      h1{ font-size:1.05rem; }
+      .actions{ height:90px; }
+    }
+
+    /* confetti pieces */
+    .confetti-piece{
+      position: fixed;
+      width:10px;
+      height:14px;
+      opacity: 0.95;
+      pointer-events: none;
+      z-index: 9999;
+      will-change: transform, opacity;
+    }
+
+    /* Respect reduced motion: disable moving/confetti */
+    @media (prefers-reduced-motion: reduce) {
+      .no { transition: none !important; }
+      .confetti-piece { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card" role="region" aria-label="Valentine card" id="card">
+    <h1 id="prompt">💘 Kaju, will you be my Valentine?</h1>
+
+    <div class="actions" aria-hidden="false" id="actions">
+      <button class="yes" id="yesBtn" aria-label="Yes, I will be your Valentine">Yes ❤️</button>
+      <button class="no" id="noBtn" aria-label="No, I don't want to" title="Try to click me">No 😢</button>
+    </div>
+  </div>
+
+  <!-- polite live region for screen readers -->
+  <div id="srAnnounce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    (function(){
+      const noBtn = document.getElementById('noBtn');
+      const yesBtn = document.getElementById('yesBtn');
+      const card = document.getElementById('card');
+      const actions = document.getElementById('actions');
+      const srAnnounce = document.getElementById('srAnnounce');
+
+      // Respect user preference for reduced motion
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Ensure the "no" button stays inside the actions area and doesn't overlap the yes button.
+      function placeNoButtonAvoidingYes() {
+        // If reduced motion is requested, keep it in one place
+        if (reduceMotion) {
+          noBtn.style.left = '8px';
+          noBtn.style.top = '8px';
+          return;
+        }
+
+        const maxAttempts = 12;
+        const actionsRect = actions.getBoundingClientRect();
+        const yesRect = yesBtn.getBoundingClientRect();
+
+        const btnW = noBtn.offsetWidth;
+        const btnH = noBtn.offsetHeight;
+
+        const padding = 8; // inner padding from edges
+        const maxX = Math.max(0, actions.clientWidth - btnW - padding);
+        const maxY = Math.max(0, actions.clientHeight - btnH - padding);
+
+        function overlaps(x, y) {
+          const noLeft = x;
+          const noTop = y;
+          const noRight = x + btnW;
+          const noBottom = y + btnH;
+
+          // convert yesBtn rect to actions-local coordinates
+          const yesLeft = yesRect.left - actionsRect.left;
+          const yesTop = yesRect.top - actionsRect.top;
+          const yesRight = yesLeft + yesRect.width;
+          const yesBottom = yesTop + yesRect.height;
+
+          const horizOverlap = !(noRight < yesLeft || noLeft > yesRight);
+          const vertOverlap = !(noBottom < yesTop || noTop > yesBottom);
+
+          return horizOverlap && vertOverlap;
+        }
+
+        let x, y, attempt=0;
+        do {
+          x = Math.round(padding + Math.random() * maxX);
+          y = Math.round(padding + Math.random() * maxY);
+          attempt++;
+          if (attempt > maxAttempts) break;
+        } while (overlaps(x,y));
+
+        noBtn.style.left = x + 'px';
+        noBtn.style.top = y + 'px';
+      }
+
+      // Track keyboard attempts so keyboard users can eventually click
+      let keyboardAttempts = 0;
+      const maxKeyboardAttemptsBeforeAllow = 3;
+
+      function moveNo() {
+        // If user has exhausted attempts, stop moving to allow click
+        if (keyboardAttempts >= maxKeyboardAttemptsBeforeAllow || reduceMotion) return;
+        placeNoButtonAvoidingYes();
+      }
+
+      // events
+      if (!reduceMotion) {
+        noBtn.addEventListener('mouseenter', moveNo);
+      } else {
+        // if reduced motion, do not make it evasive on hover
+        noBtn.addEventListener('mouseenter', () => {});
+      }
+
+      noBtn.addEventListener('focus', () => {
+        keyboardAttempts = Math.min(maxKeyboardAttemptsBeforeAllow, keyboardAttempts + 1);
+        moveNo();
+      });
+
+      noBtn.addEventListener('touchstart', (e) => {
+        // prevent touch from immediately triggering click on some devices
+        e.preventDefault();
+        moveNo();
+      }, {passive:false});
+
+      // also move when mouse moves near the button (desktop)
+      actions.addEventListener('mousemove', (e) => {
+        if (reduceMotion) return;
+        const rect = noBtn.getBoundingClientRect();
+        const dx = e.clientX - (rect.left + rect.width/2);
+        const dy = e.clientY - (rect.top + rect.height/2);
+        const dist = Math.hypot(dx, dy);
+        if (dist < 120) moveNo();
+      });
+
+      // gentle periodic movement (every 900ms) to keep it lively but not frantic
+      let periodic = null;
+      if (!reduceMotion) {
+        periodic = setInterval(moveNo, 900);
+      }
+
+      window.addEventListener('load', placeNoButtonAvoidingYes);
+      window.addEventListener('resize', placeNoButtonAvoidingYes);
+
+      // confetti utilities (skip if reduced motion)
+      function confettiBurst() {
+        if (reduceMotion) return;
+        const colors = ['#ff4d6d','#ffd166','#f15bb5','#00bbf9','#8ac926'];
+        const pieces = 28;
+        for (let i=0;i<pieces;i++){
+          const el = document.createElement('div');
+          el.className = 'confetti-piece';
+          el.style.background = colors[Math.floor(Math.random()*colors.length)];
+          el.style.left = (50 + (Math.random()*60 - 30)) + '%';
+          el.style.top = '-10%';
+          // random size & rotation
+          el.style.width = (8 + Math.random()*12) + 'px';
+          el.style.height = (10 + Math.random()*18) + 'px';
+          el.style.transform = `translate3d(0,0,0) rotate(${Math.random()*360}deg)`;
+          document.body.appendChild(el);
+
+          // animate using Web Animations API if available
+          const endX = (Math.random()*2-1) * 120; // horizontal drift
+          const duration = 1600 + Math.random()*900;
+          if (el.animate) {
+            el.animate([
+              { transform: `translate3d(0,0,0) rotate(${Math.random()*360}deg)`, opacity:1 },
+              { transform: `translate3d(${endX}px, ${window.innerHeight + 200}px, 0) rotate(${Math.random()*720}deg)`, opacity:0.85 }
+            ], {
+              duration,
+              easing: 'cubic-bezier(.2,.8,.2,1)'
+            });
+            // remove after animation
+            setTimeout(()=> el.remove(), duration+80);
+          } else {
+            // fallback: remove after duration
+            setTimeout(()=> el.remove(), duration+80);
+          }
+        }
+      }
+
+      function yesClick(e){
+        // stop periodic movement
+        if (periodic) clearInterval(periodic);
+
+        // replace card content and focus the new heading for accessibility
+        card.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px;">
+            <h1 id="resultHeading" style="margin:0;color:white;background:linear-gradient(90deg,var(--accent),#ff9ab0);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.25rem;">
+              💖 Yayyy Kaju! I knew it 😍💖
+            </h1>
+            <img src="https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif" alt="Dancing celebration" style="width:240px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.14);" />
+          </div>
+        `;
+        // announce to screen readers
+        srAnnounce.textContent = 'You accepted! Celebration time.';
+        // small confetti bursts (respecting reduced motion)
+        confettiBurst();
+        setTimeout(confettiBurst, 250);
+        setTimeout(confettiBurst, 700);
+
+        // move focus to the new heading so screen readers pick up the change
+        const newHeading = document.getElementById('resultHeading');
+        if (newHeading) {
+          newHeading.setAttribute('tabindex', '-1');
+          newHeading.focus({ preventScroll: false });
+        }
+      }
+
+      yesBtn.addEventListener('click', yesClick);
+
+      // If keyboard user keeps trying to press Enter/Space on the 'no' button,
+      // move it for up to a few attempts. After that we stop moving to allow activation.
+      noBtn.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          // if they've tried enough times, allow click
+          if (keyboardAttempts >= maxKeyboardAttemptsBeforeAllow) {
+            // simulate a click (user intentionally wants to click "No")
+            noBtn.click();
+            return;
+          }
+          keyboardAttempts++;
+          moveNo();
+        }
+      });
+
+      // If user (eventually) clicks No, show a gentle fallback message
+      function noClick(e) {
+        if (periodic) clearInterval(periodic);
+        card.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px;">
+            <h1 id="noResultHeading" style="margin:0;color:var(--accent);font-size:1.1rem;">
+              💔 That's okay, Kaju. I'll still be your friend.
+            </h1>
+            <p style="margin:0;color:#444;">Thanks for being honest — I appreciate you.</p>
+          </div>
+        `;
+        srAnnounce.textContent = 'You declined. That is okay.';
+        const h = document.getElementById('noResultHeading');
+        if (h) { h.setAttribute('tabindex','-1'); h.focus(); }
+      }
+
+      noBtn.addEventListener('click', noClick);
+
+      // Ensure things are placed correctly initially
+      placeNoButtonAvoidingYes();
+
+      // Clean up when page unloads (defensive)
+      window.addEventListener('beforeunload', () => {
+        if (periodic) clearInterval(periodic);
+      });
+    })();
+  </script>
+</body>
+</html>
